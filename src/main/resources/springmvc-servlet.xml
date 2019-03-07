@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans" 
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:mvc="http://www.springframework.org/schema/mvc"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="
+	http://www.springframework.org/schema/beans 
+    http://www.springframework.org/schema/beans/spring-beans-4.0.xsd
+    http://www.springframework.org/schema/context
+    http://www.springframework.org/schema/context/spring-context-4.0.xsd
+    http://www.springframework.org/schema/aop
+    http://www.springframework.org/schema/aop/spring-aop-4.0.xsd
+    http://www.springframework.org/schema/mvc
+    http://www.springframework.org/schema/mvc/spring-mvc-4.0.xsd">
+
+	<context:component-scan base-package="com.qetch.springmvc.controller"/>
+	<context:component-scan base-package="com.qetch.springmvc.service"/>
+	<context:component-scan base-package="com.qetch.springmvc.aspect"/>
+	
+	<mvc:annotation-driven/>
+	<mvc:resources location="/WEB-INF/css/" mapping="/css/**"/>
+	
+	<bean class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+		<property name="prefix" value="/WEB-INF/jsp/"/>
+		<property name="suffix" value=".jsp"/>
+	</bean>
+
+	<bean id="checkLoginInterceptor" class="com.qetch.springmvc.interceptor.CheckLoginInterceptor"/>
+	
+	<bean id="timeBaseAccessInterceptor" class="com.qetch.springmvc.interceptor.TimeBaseAccessInterceptor">
+		<property name="openingTime" value="9"/>
+		<property name="closingTime" value="12"/>
+		<property name="mappingURL" value=".*/user\.do\?action=reg.*"/>
+	</bean>
+	
+	<!-- 映射器 -->
+	<bean class="org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping">
+		<property name="interceptors">
+			<list>
+				<ref bean="checkLoginInterceptor"/>
+				<ref bean="timeBaseAccessInterceptor"/>
+			</list>
+		</property>
+	</bean>
+	
+	<bean id="myJsonSerializer" class="com.qetch.springmvc.config.MyJsonSerializer"/>
+	
+	<bean id="jacksonMessageConverter" class="org.springframework.http.converter.json.MappingJackson2HttpMessageConverter">
+		<property name="supportedMediaTypes">
+			<list>
+				<value>application/json;charset=UTF-8</value>
+			</list>
+		</property>
+		<property name="objectMapper">
+			<bean class="com.fasterxml.jackson.databind.ObjectMapper">
+				<!-- 将字段为null的清理掉不在结果Json中显示出来 -->
+				<property name="serializationInclusion">
+					<!-- 其余的还有以下几种配置:ALWAYS, NON_NULL, NON_ABSENT, NON_EMPTY, NON_DEFAULT, CUSTOM, USE_DEFAULTS -->
+					<value type="com.fasterxml.jackson.annotation.JsonInclude.Include">NON_NULL</value>
+				</property>
+				<!-- 不能将null字段直接去除,而是需要给予一个默认的值 -->
+				<property name="serializerProvider">
+					<bean class="com.fasterxml.jackson.databind.ser.DefaultSerializerProvider.Impl">
+						<property name="nullValueSerializer">
+							<ref bean="myJsonSerializer"/>
+						</property>
+					</bean>
+				</property>
+			</bean>
+		</property>
+	</bean>
+	
+	<!-- 适配器 -->
+	<bean class="org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter">
+		<!-- 添加json格式转换支持 -->
+		<property name="messageConverters">
+			<list>
+				<ref bean="jacksonMessageConverter"/>
+			</list>
+		</property>
+	</bean>
+</beans>
