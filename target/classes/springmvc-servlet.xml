@@ -18,15 +18,46 @@
 	<context:component-scan base-package="com.qetch.springmvc.service"/>
 	<context:component-scan base-package="com.qetch.springmvc.aspect"/>
 	
-	<mvc:annotation-driven/>
+	<!-- 
+		如果使用了<mvc:annotation-driven/>，它会自动注册RequestMappingHandlerMapping和RequestMappingHandlerAdapter
+		这两个bean，所以就没有机会再给它注入interceptors属性（第三种配置方式，另外两种方式也会受到影响），就无法指定拦截器。
+		因此，<mvc:annotation-driven/>需要去掉。（待验证！！！）
+	 -->
+	<!-- <mvc:annotation-driven/> -->
 	<mvc:resources location="/WEB-INF/css/" mapping="/css/**"/>
 	
 	<bean class="org.springframework.web.servlet.view.InternalResourceViewResolver">
 		<property name="prefix" value="/WEB-INF/jsp/"/>
 		<property name="suffix" value=".jsp"/>
 	</bean>
-
-	<bean id="checkLoginInterceptor" class="com.qetch.springmvc.interceptor.CheckLoginInterceptor"/>
+	
+	<!-- 第一种配置方式，拦截所有的url -->
+	<mvc:interceptors>
+		<bean class="com.qetch.springmvc.interceptor.CheckLoginInterceptor"/>
+	</mvc:interceptors>
+	
+	<!-- 第二种配置方式，拦截匹配的url -->
+	<!-- 配置拦截器，多个拦截器按顺序执行 -->
+	<mvc:interceptors>
+		<mvc:interceptor>
+			<!-- 匹配的是url路径，如果不配置或配置“/**”，将拦截所有的controller -->
+			<mvc:mapping path="/"/>
+			<mvc:mapping path="/user/**"/>
+			<mvc:mapping path="/test/**"/>
+			<bean class="com.qetch.springmvc.interceptor.CommonInterceptor"/>
+		</mvc:interceptor>
+		<!-- 当设置多个拦截器时，先按顺序调用preHandle()方法，然后逆序调用每个拦截器的postHandle()和afterCompletion() -->
+	</mvc:interceptors>
+	
+	<!-- 第三种配置方式，RequestMappingHandlerMapping上的拦截器 -->
+	<!-- 映射器 -->
+	<bean class="org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping">
+		<property name="interceptors">
+			<list>
+				<ref bean="timeBaseAccessInterceptor"/>
+			</list>
+		</property>
+	</bean>
 	
 	<bean id="timeBaseAccessInterceptor" class="com.qetch.springmvc.interceptor.TimeBaseAccessInterceptor">
 		<property name="openingTime" value="9"/>
@@ -34,17 +65,15 @@
 		<property name="mappingURL" value=".*/user\.do\?action=reg.*"/>
 	</bean>
 	
-	<!-- 映射器 -->
-	<bean class="org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping">
-		<property name="interceptors">
+	<!-- 适配器 -->
+	<bean class="org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter">
+		<!-- 添加json格式转换支持 -->
+		<property name="messageConverters">
 			<list>
-				<ref bean="checkLoginInterceptor"/>
-				<ref bean="timeBaseAccessInterceptor"/>
+				<ref bean="jacksonMessageConverter"/>
 			</list>
 		</property>
 	</bean>
-	
-	<bean id="myJsonSerializer" class="com.qetch.springmvc.config.MyJsonSerializer"/>
 	
 	<bean id="jacksonMessageConverter" class="org.springframework.http.converter.json.MappingJackson2HttpMessageConverter">
 		<property name="supportedMediaTypes">
@@ -71,13 +100,6 @@
 		</property>
 	</bean>
 	
-	<!-- 适配器 -->
-	<bean class="org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter">
-		<!-- 添加json格式转换支持 -->
-		<property name="messageConverters">
-			<list>
-				<ref bean="jacksonMessageConverter"/>
-			</list>
-		</property>
-	</bean>
+	<bean id="myJsonSerializer" class="com.qetch.springmvc.config.MyJsonSerializer"/>
+	
 </beans>
